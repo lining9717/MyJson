@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/workspace/MyJson/myjson.c
+myjson.h
+/root/workspace/MyJson/myjson.h
+stdlib.h
+-
+assert.h
+-
+
+/root/workspace/MyJson/myjson.h
+
