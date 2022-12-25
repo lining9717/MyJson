@@ -22,6 +22,15 @@ static int g_TestPassed = 0;
 
 #define EXPECT_EQ_INT(expect, actual) EXPECT_EQ_BASE((expect == actual), expect, actual, "%d")
 
+#define TEST_ERROR(error, json)                     \
+    do                                              \
+    {                                               \
+        JsonValue jv;                               \
+        jv.type = JSON_FALSE;                       \
+        EXPECT_EQ_INT(error, JsonParse(&jv, json)); \
+        EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv)); \
+    } while (0);
+
 static void TestParseNull()
 {
     JsonValue jv;
@@ -48,38 +57,20 @@ static void TestParseTrue()
 
 static void TestParseExpectValue()
 {
-    JsonValue jv;
-    jv.type = JSON_FALSE;
-    EXPECT_EQ_INT(JSON_PARSE_EXPECT_VALUE, JsonParse(&jv, ""));
-    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
-
-    jv.type = JSON_FALSE;
-    EXPECT_EQ_INT(JSON_PARSE_EXPECT_VALUE, JsonParse(&jv, " "));
-    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
+    TEST_ERROR(JSON_PARSE_EXPECT_VALUE, "");
+    TEST_ERROR(JSON_PARSE_EXPECT_VALUE, " ");
 }
 
 static void TestParseInvalidValue()
 {
-    JsonValue jv;
-    jv.type = JSON_FALSE;
-    EXPECT_EQ_INT(JSON_PARSE_INVALID_VALUE, JsonParse(&jv, "nul"));
-    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
-
-    jv.type = JSON_FALSE;
-    EXPECT_EQ_INT(JSON_PARSE_INVALID_VALUE, JsonParse(&jv, "?"));
-    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "nul");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "?");
 }
 
 static void TestParseRootNotSingular()
 {
-    JsonValue jv;
-    jv.type = JSON_FALSE;
-    EXPECT_EQ_INT(JSON_PARSE_ROOT_NOT_SINGULAR, JsonParse(&jv, "null x"));
-    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
-
-    jv.type = JSON_FALSE;
-    EXPECT_EQ_INT(JSON_PARSE_ROOT_NOT_SINGULAR, JsonParse(&jv, "truesad"));
-    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
+    TEST_ERROR(JSON_PARSE_ROOT_NOT_SINGULAR, "null          x");
+    TEST_ERROR(JSON_PARSE_ROOT_NOT_SINGULAR, "truesad");
 }
 
 static void TestParse()
