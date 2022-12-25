@@ -76,6 +76,10 @@ static void TestParseRootNotSingular()
     jv.type = JSON_FALSE;
     EXPECT_EQ_INT(JSON_PARSE_ROOT_NOT_SINGULAR, JsonParse(&jv, "null x"));
     EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
+
+    jv.type = JSON_FALSE;
+    EXPECT_EQ_INT(JSON_PARSE_ROOT_NOT_SINGULAR, JsonParse(&jv, "truesad"));
+    EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv));
 }
 
 static void TestParse()

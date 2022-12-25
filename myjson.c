@@ -1,5 +1,6 @@
 #include "myjson.h"
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #define EXPECT(c, ch)               \
@@ -8,6 +9,8 @@
         assert((*c->json) == (ch)); \
         c->json++;                  \
     } while (0)
+
+#define JSON_PARSE_LEN 8
 
 typedef struct
 {
@@ -33,33 +36,27 @@ static int JsonParseRootSingluar(JsonContext *c, JsonValue *jv)
     return JSON_PARSE_OK;
 }
 
-static int JsonParseNull(JsonContext *c, JsonValue *jv)
+static int JsonParseLiteral(JsonContext *c, JsonValue *jv, const char *text)
 {
-    EXPECT(c, 'n');
-    if (c->json[0] != 'u' || c->json[1] != 'l' || c->json[2] != 'l')
-        return JSON_PARSE_INVALID_VALUE;
-    c->json += 3;
-    jv->type = JSON_NULL;
-    return JsonParseRootSingluar(c, jv);
-}
+    int textLen = strlen(text);
+    for (int i = 0; i < textLen; ++i)
+    {
+        if (c->json[i] == '\0' || c->json[i] != text[i])
+        {
+            return JSON_PARSE_INVALID_VALUE;
+        }
+    }
+    c->json += textLen;
 
-static int JsonParseTrue(JsonContext *c, JsonValue *jv)
-{
-    EXPECT(c, 't');
-    if (c->json[0] != 'r' || c->json[1] != 'u' || c->json[2] != 'e')
-        return JSON_PARSE_INVALID_VALUE;
-    c->json += 3;
-    jv->type = JSON_TRUE;
-    return JsonParseRootSingluar(c, jv);
-}
-
-static int JsonParseFalse(JsonContext *c, JsonValue *jv)
-{
-    EXPECT(c, 'f');
-    if (c->json[0] != 'a' || c->json[1] != 'l' || c->json[2] != 's' || c->json[3] != 'e')
-        return JSON_PARSE_INVALID_VALUE;
-    c->json += 4;
-    jv->type = JSON_FALSE;
+    const char *resultCondicates[JSON_PARSE_LEN] = {"null", "false", "true"};
+    for (int i = 0; i < (sizeof(resultCondicates) / sizeof(resultCondicates[0])); ++i)
+    {
+        if (strcmp(resultCondicates[i], text) == 0)
+        {
+            jv->type = (JsonType)i;
+            break;
+        }
+    }
     return JsonParseRootSingluar(c, jv);
 }
 
@@ -69,13 +66,13 @@ static int JsonPareValue(JsonContext *c, JsonValue *jv)
     switch (*c->json)
     {
     case 'n':
-        ret = JsonParseNull(c, jv);
+        ret = JsonParseLiteral(c, jv, "null");
         break;
     case 't':
-        ret = JsonParseTrue(c, jv);
+        ret = JsonParseLiteral(c, jv, "true");
         break;
     case 'f':
-        ret = JsonParseFalse(c, jv);
+        ret = JsonParseLiteral(c, jv, "false");
         break;
     case '\0':
         ret = JSON_PARSE_EXPECT_VALUE;
