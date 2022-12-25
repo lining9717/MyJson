@@ -21,6 +21,7 @@ static int g_TestPassed = 0;
     } while (0)
 
 #define EXPECT_EQ_INT(expect, actual) EXPECT_EQ_BASE((expect == actual), expect, actual, "%d")
+#define EXPECT_EQ_DOUBLE(expect, actual) EXPECT_EQ_BASE((expect == actual), expect, actual, "%.17g")
 
 #define TEST_ERROR(error, json)                     \
     do                                              \
@@ -30,6 +31,15 @@ static int g_TestPassed = 0;
         EXPECT_EQ_INT(error, JsonParse(&jv, json)); \
         EXPECT_EQ_INT(JSON_NULL, JsonGetType(&jv)); \
     } while (0);
+
+#define TEST_NUMBER(expect, json)                           \
+    do                                                      \
+    {                                                       \
+        JsonValue jv;                                       \
+        EXPECT_EQ_INT(JSON_PARSE_OK, JsonParse(&jv, json)); \
+        EXPECT_EQ_INT(JSON_NUMBER, JsonGetType(&jv));       \
+        EXPECT_EQ_DOUBLE(expect, JsonGetNumber(&jv));       \
+    } while (0)
 
 static void TestParseNull()
 {
@@ -65,12 +75,46 @@ static void TestParseInvalidValue()
 {
     TEST_ERROR(JSON_PARSE_INVALID_VALUE, "nul");
     TEST_ERROR(JSON_PARSE_INVALID_VALUE, "?");
+
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "+0");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "+1");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, ".123"); /* at least one digit before '.' */
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "1.");   /* at least one digit after '.' */
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "INF");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "inf");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "NAN");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "nan");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "e");
+    TEST_ERROR(JSON_PARSE_INVALID_VALUE, "E");
 }
 
 static void TestParseRootNotSingular()
 {
     TEST_ERROR(JSON_PARSE_ROOT_NOT_SINGULAR, "null          x");
     TEST_ERROR(JSON_PARSE_ROOT_NOT_SINGULAR, "truesad");
+}
+
+static void TestParseNumber()
+{
+    TEST_NUMBER(0.0, "0");
+    TEST_NUMBER(0.0, "-0");
+    TEST_NUMBER(0.0, "-0.0");
+    TEST_NUMBER(1.0, "1");
+    TEST_NUMBER(-1.0, "-1");
+    TEST_NUMBER(1.5, "1.5");
+    TEST_NUMBER(-1.5, "-1.5");
+    TEST_NUMBER(3.1416, "3.1416");
+    TEST_NUMBER(1E10, "1E10");
+    TEST_NUMBER(1e10, "1e10");
+    TEST_NUMBER(1E+10, "1E+10");
+    TEST_NUMBER(1E-10, "1E-10");
+    TEST_NUMBER(-1E10, "-1E10");
+    TEST_NUMBER(-1e10, "-1e10");
+    TEST_NUMBER(-1E+10, "-1E+10");
+    TEST_NUMBER(-1E-10, "-1E-10");
+    TEST_NUMBER(1.234E+10, "1.234E+10");
+    TEST_NUMBER(1.234E-10, "1.234E-10");
+    TEST_NUMBER(0.0, "1e-10000"); /* must underflow */
 }
 
 static void TestParse()
@@ -81,11 +125,12 @@ static void TestParse()
     TestParseExpectValue();
     TestParseInvalidValue();
     TestParseRootNotSingular();
+    TestParseNumber();
 }
 
 int main(int argc, char const *argv[])
 {
     TestParse();
     printf("%d/%d (%3.2f%%) passed\n", g_TestPassed, g_TestCount, g_TestPassed * 100.0 / g_TestCount);
-    return 0;
+    return g_MainRet;
 }

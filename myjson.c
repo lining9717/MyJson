@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
+#include <errno.h> /* errno, ERANGE */
+#include <math.h>  /* HUGE_VAL */
 
 #define EXPECT(c, ch)               \
     do                              \
@@ -12,10 +15,69 @@
 
 #define JSON_PARSE_LEN 8
 
+#define ISDIGIT(ch) ((ch) >= '0' && (ch) <= '9')
+
 typedef struct
 {
     const char *json;
 } JsonContext;
+
+static int CheckDoubleNumber(const char *num)
+{
+    if (*num == '-')
+        ++num;
+
+    if (!ISDIGIT(*num))
+        return JSON_PARSE_INVALID_VALUE;
+
+    if (*num == '0')
+        ++num;
+    else
+    {
+        while (ISDIGIT(*num))
+        {
+            ++num;
+        }
+    }
+
+    if (*num == '\0')
+        return JSON_PARSE_OK;
+
+    if (*num == '.')
+    {
+        ++num;
+        if (!ISDIGIT(*num))
+            return JSON_PARSE_INVALID_VALUE;
+        while (ISDIGIT(*num))
+        {
+            ++num;
+        }
+        if (*num == '\0')
+            return JSON_PARSE_OK;
+    }
+
+    if (*num != 'e' && *num != 'E')
+        return JSON_PARSE_INVALID_VALUE;
+
+    ++num;
+    if (*num != '-' && *num != '+' && !ISDIGIT(*num))
+        return JSON_PARSE_INVALID_VALUE;
+
+    if (*num == '-' || *num == '+')
+        ++num;
+
+    if (!ISDIGIT(*num))
+        return JSON_PARSE_INVALID_VALUE;
+
+    while (ISDIGIT(*num))
+    {
+        ++num;
+    }
+
+    if (*num != '\0')
+        return JSON_PARSE_ROOT_NOT_SINGULAR;
+    return JSON_PARSE_OK;
+}
 
 static void JsonParseWhitespace(JsonContext *c)
 {
@@ -60,7 +122,22 @@ static int JsonParseLiteral(JsonContext *c, JsonValue *jv, const char *text)
     return JsonParseRootSingluar(c, jv);
 }
 
-static int JsonPareValue(JsonContext *c, JsonValue *jv)
+static int JsonParseNumber(JsonContext *c, JsonValue *jv)
+{
+    int ret = CheckDoubleNumber(c->json);
+    if (ret != JSON_PARSE_OK)
+        return ret;
+
+    errno = 0;
+    jv->number = strtod(c->json, NULL);
+    if (errno == ERANGE && (jv->number == HUGE_VAL || jv->number == -HUGE_VAL))
+        return JSON_PARSE_NUMBER_TOO_BIG;
+
+    jv->type = JSON_NUMBER;
+    return JSON_PARSE_OK;
+}
+
+static int JsonParseValue(JsonContext *c, JsonValue *jv)
 {
     int ret = JSON_PARSE_INVALID_VALUE;
     switch (*c->json)
@@ -78,6 +155,7 @@ static int JsonPareValue(JsonContext *c, JsonValue *jv)
         ret = JSON_PARSE_EXPECT_VALUE;
         break;
     default:
+        ret = JsonParseNumber(c, jv);
         break;
     }
 
@@ -91,11 +169,17 @@ int JsonParse(JsonValue *jv, const char *json)
     c.json = json;
     jv->type = JSON_NULL;
     JsonParseWhitespace(&c);
-    return JsonPareValue(&c, jv);
+    return JsonParseValue(&c, jv);
 }
 
 JsonType JsonGetType(const JsonValue *jv)
 {
     assert(jv != NULL);
     return jv->type;
+}
+
+double JsonGetNumber(const JsonValue *jv)
+{
+    assert(jv != NULL && jv->type == JSON_NUMBER);
+    return jv->number;
 }
